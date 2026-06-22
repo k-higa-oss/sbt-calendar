@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SBT 稼働推進カレンダー</title>
+<style>
+:root{
+  --cs:#4472C4;--cm:#70AD47;--cc:#FFC000;--cv:#ED7D31;--csh:#9DC3E6;
+  --ch:#FFD7D7;--cb:#D9D9D9;--csun:#FFF4F4;--csat:#F0F6FF;
+  --hdr:#2F5496;--wkh:#DAE3F3;--emp:#F5F5F5;
+  --r:6px;--sh:0 2px 8px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Meiryo','Yu Gothic',sans-serif;background:#f0f2f5;color:#333;}
+.nav{background:var(--hdr);color:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.nav h1{font-size:16px;font-weight:bold;}
+.nav-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.nb{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:13px;}
+.nb:hover{background:rgba(255,255,255,.35);}.nb.active{background:#fff;color:var(--hdr);font-weight:bold;}
+.screen{display:none;padding:16px 20px;}.screen.active{display:block;}
+/* 読み込み中 */
+.loading-bar{background:#fff;border-radius:var(--r);box-shadow:var(--sh);padding:20px;text-align:center;margin-bottom:16px;font-size:14px;color:#555;}
+.sync-status{font-size:12px;padding:4px 10px;border-radius:4px;display:inline-block;margin-left:8px;}
+.sync-ok{background:#e8f5e9;color:#2e7d32;}
+.sync-err{background:#fdecea;color:#c62828;}
+.sync-ing{background:#fff3e0;color:#e65100;}
+/* 凡例 */
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
+.li{display:flex;align-items:center;gap:5px;font-size:12px;background:#fff;border:1px solid #ddd;border-radius:4px;padding:3px 8px;}
+.ld{width:14px;height:14px;border-radius:3px;flex-shrink:0;}
+/* カレンダー */
+.cw{display:flex;flex-direction:column;gap:20px;}
+.mb{background:#fff;border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;}
+.mh{background:var(--hdr);color:#fff;padding:10px 16px;font-size:15px;font-weight:bold;}
+.wh{display:grid;grid-template-columns:repeat(7,1fr);}
+.wh div{padding:6px 4px;text-align:center;font-size:12px;font-weight:bold;background:var(--wkh);border:1px solid #dde;}
+.wh div:first-child{color:#C00;}.wh div:last-child{color:#0070C0;}
+.wr{display:grid;grid-template-columns:repeat(7,1fr);}
+.dc{min-height:82px;padding:5px 6px;border:1px solid #dde;font-size:11px;display:flex;flex-direction:column;gap:2px;}
+.dc.empty{background:var(--emp);}.dc.blocked{background:var(--cb);}.dc.holiday{background:var(--ch);}
+.dc.sunday{background:var(--csun);}.dc.saturday{background:var(--csat);}.dc.normal{background:#fff;}
+.dn{font-size:13px;font-weight:bold;line-height:1;}
+.dc.sunday .dn{color:#C00;}.dc.saturday .dn{color:#0070C0;}.dc.blocked .dn{color:#888;}.dc.holiday .dn{color:#C00;}
+.hl{font-size:10px;color:#C00;}.bl{font-size:10px;color:#888;}
+.eb{border-radius:3px;padding:2px 5px;font-size:10px;line-height:1.3;word-break:break-all;}
+.ng-label{font-size:10px;color:#cc0000;font-weight:bold;background:#ffe0e0;border-radius:3px;padding:1px 4px;display:none;}
+.ng-visible .ng-label{display:block;}
+/* 管理画面 */
+.aw{max-width:980px;}
+.at{font-size:16px;font-weight:bold;color:var(--hdr);margin-bottom:14px;}
+.fc{background:#fff;border-radius:var(--r);box-shadow:var(--sh);padding:18px;margin-bottom:20px;}
+.fc h3{font-size:14px;font-weight:bold;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid var(--wkh);}
+.fr{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px;align-items:flex-end;}
+.fg{display:flex;flex-direction:column;gap:4px;}
+.fg label{font-size:12px;color:#666;}
+.fg input,.fg select{border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:13px;min-width:110px;}
+.btn{border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-size:13px;}
+.btn-blue{background:var(--hdr);color:#fff;}.btn-blue:hover{opacity:.85;}
+.btn-green{background:#217346;color:#fff;}.btn-green:hover{opacity:.85;}
+.btn-orange{background:#c05000;color:#fff;}.btn-orange:hover{opacity:.85;}
+.btn-purple{background:#6940a5;color:#fff;}.btn-purple:hover{opacity:.85;}
+.btn-red{background:#e53e3e;color:#fff;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:12px;border:none;}
+.btn-edit{background:#e8a000;color:#fff;padding:3px 10px;border-radius:3px;cursor:pointer;font-size:12px;border:none;}
+.btn-ng{background:#cc0000;color:#fff;}.btn-ng:hover{opacity:.85;}
+.note{font-size:12px;color:#888;margin-top:6px;}
+/* 公開ボックス */
+.pub-box{background:#fff0f8;border:2px solid #c00060;border-radius:var(--r);padding:14px;margin-bottom:20px;}
+.pub-box h3{color:#c00060;font-size:14px;font-weight:bold;margin-bottom:8px;}
+/* UNDO */
+.undo-bar{display:flex;align-items:center;gap:8px;background:#fff8e8;border:1px solid #f0d060;border-radius:4px;padding:8px 12px;margin-bottom:14px;}
+/* バックアップ */
+.backup-row{display:flex;align-items:center;gap:8px;background:#f9f9f9;padding:10px 12px;border-radius:4px;border:1px solid #eee;margin-bottom:6px;}
+.backup-row:hover{background:#f0f4ff;}
+.backup-name{font-size:13px;font-weight:bold;flex:1;}
+.backup-time{font-size:11px;color:#888;min-width:140px;}
+/* NG日 */
+.blrow{display:flex;align-items:center;gap:8px;background:#f9f9f9;padding:8px 12px;border-radius:4px;border:1px solid #eee;margin-bottom:6px;}
+.blrow span{font-size:13px;flex:1;}
+.bltag{background:var(--cb);border-radius:3px;padding:2px 8px;font-size:11px;color:#555;}
+/* 自動生成 */
+.gen-section{background:#f8faff;border:1px solid #d0dff5;border-radius:var(--r);padding:14px;margin-bottom:12px;}
+.gen-section h4{font-size:13px;font-weight:bold;color:var(--hdr);margin-bottom:10px;}
+.month-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}
+.month-cell{display:flex;flex-direction:column;gap:4px;background:#fff;border:2px solid #e0e8f0;border-radius:var(--r);padding:8px;}
+.month-cell.selected{border-color:var(--hdr);background:#eef3fb;}
+.month-cell.disabled{background:#f0f0f0;opacity:.5;}
+.month-label{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:bold;cursor:pointer;}
+.month-label input[type=checkbox]{width:16px;height:16px;cursor:pointer;}
+.month-cell select,.month-cell input[type=text]{font-size:11px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;width:100%;}
+.sub-label{font-size:10px;color:#888;margin-top:2px;}
+.preview-wrap{background:#f0f7ff;border:1px solid #bde;border-radius:var(--r);padding:14px;margin-top:12px;}
+.preview-wrap h4{color:var(--hdr);margin-bottom:10px;font-size:14px;}
+.preview-month{margin-bottom:16px;}
+.preview-month h5{font-size:13px;font-weight:bold;color:#555;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #d0e8f8;}
+.preview-row{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:12px;}
+.step-dot{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;flex-shrink:0;}
+/* ルール表 */
+.rt{width:100%;border-collapse:collapse;font-size:13px;}
+.rt th{background:var(--wkh);padding:8px 12px;text-align:left;font-size:12px;border-bottom:2px solid #ccc;}
+.rt td{padding:8px 12px;border-bottom:1px solid #eee;vertical-align:top;}
+.sb{display:inline-block;width:22px;height:22px;border-radius:50%;text-align:center;line-height:22px;font-size:12px;font-weight:bold;color:#fff;background:var(--hdr);margin-right:4px;}
+/* イベント表 */
+.et{width:100%;border-collapse:collapse;font-size:13px;}
+.et th{background:var(--wkh);padding:8px 10px;text-align:left;font-size:12px;border-bottom:2px solid #ccc;}
+.et td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle;}
+.et tr:hover td{background:#fafafa;}
+.bs{border-radius:3px;padding:2px 8px;font-size:11px;white-space:nowrap;}
+/* モーダル */
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;}
+.modal-overlay.active{display:flex;}
+.modal{background:#fff;border-radius:var(--r);padding:24px;width:500px;max-width:95vw;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.modal h3{font-size:15px;font-weight:bold;margin-bottom:16px;color:var(--hdr);}
+.modal .fg{margin-bottom:12px;}
+.modal .fg input,.modal .fg select{width:100%;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+@media(max-width:700px){.month-grid{grid-template-columns:repeat(3,1fr);}.dc{min-height:56px;padding:3px 2px;}.dn{font-size:11px;}.eb{font-size:9px;padding:1px 3px;}}
+</style>
+</head>
+<body>
+<div class="nav">
+  <h1>📅 SBT 稼働推進カレンダー</h1>
+  <div class="nav-btns">
+    <button class="nb active" onclick="showScreen('calendar',this)">カレンダー</button>
+    <button class="nb" onclick="showScreen('admin',this)">⚙ 管理（担当者用）</button>
+    <button class="nb" onclick="showScreen('guide',this)">📖 使い方</button>
+  </div>
+</div>
+
+<!-- カレンダー画面 -->
+<div id="screen-calendar" class="screen active">
+  <div class="legend">
+    <div class="li"><div class="ld" style="background:var(--cs)"></div>SBTセミナー開催日</div>
+    <div class="li"><div class="ld" style="background:var(--cm)"></div>セミナー案内メール配信</div>
+    <div class="li"><div class="ld" style="background:var(--cc)"></div>チラシ・DM・メルマガ締切</div>
+    <div class="li"><div class="ld" style="background:var(--cv)"></div>動画作成締切＆納品</div>
+    <div class="li"><div class="ld" style="background:var(--csh)"></div>他支社共有予定日</div>
+    <div class="li"><div class="ld" style="background:#7030A0"></div>打ち合わせ</div>
+    <div class="li"><div class="ld" style="background:var(--ch)"></div>祝日</div>
+    <div class="li"><div class="ld" style="background:var(--cb)"></div>休業期間</div>
+    <div class="li"><div class="ld" style="background:#FF0000;opacity:.7"></div>NG日</div>
+    <button id="ngToggleBtn" onclick="toggleNg()" style="margin-left:4px;background:#888;color:#fff;border:none;padding:3px 12px;border-radius:4px;cursor:pointer;font-size:12px">🚫 NG日を表示する</button>
+  </div>
+  <div id="calSyncStatus"></div>
+  <div class="cw" id="calendarWrap"></div>
+</div>
+
+<!-- 管理画面 -->
+<div id="screen-admin" class="screen">
+  <div class="aw">
+    <div class="at">⚙ 管理画面（担当者用）</div>
+
+    <!-- UNDO -->
+    <div class="undo-bar" id="undoBar">
+      <button class="btn" style="background:#e8a000;color:#fff;padding:5px 14px;font-size:13px" onclick="undoAction()" id="undoBtn">↩ 元に戻す</button>
+      <span style="font-size:12px;color:#886600" id="undoCount">操作履歴：0件</span>
+      <span style="font-size:11px;color:#aaa;margin-left:4px">（最大5回前まで戻せます）</span>
+    </div>
+
+    <!-- 公開ボックス -->
+    <div class="pub-box">
+      <h3>🚀 GitHubに保存して全員に反映</h3>
+      <div id="githubStatus" style="margin-bottom:8px"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-green" onclick="publishToGitHub()" id="publishBtn">🚀 保存して公開する</button>
+        <button class="btn" style="background:#555;color:#fff" onclick="exportHTML()">📥 ローカルにダウンロード</button>
+        <button class="btn" style="background:#888;color:#fff;font-size:12px;padding:5px 12px" onclick="showGHModal()">⚙ GitHub設定</button>
+        <button class="btn" style="background:#4472C4;color:#fff;font-size:12px;padding:5px 12px" onclick="fetchFromGitHub()">🔄 最新データを取得</button>
+      </div>
+      <p style="font-size:11px;color:#999;margin-top:8px">※ 編集前に「最新データを取得」を押すと他の担当者の変更を反映できます</p>
+    </div>
+
+    <!-- ルール -->
+    <div class="fc">
+      <h3>📋 スケジュール作成ルール <button class="btn btn-orange" style="font-size:12px;padding:4px 12px;margin-left:12px" onclick="toggleRuleEdit()">✏ 編集モード</button></h3>
+      <table class="rt" id="ruleTable"></table>
+      <p class="note">※「編集モード」で項目名・ルール説明を変更できます。</p>
+    </div>
+
+    <!-- 年間自動生成 -->
+    <div class="fc">
+      <h3>🚀 年間スケジュール自動生成</h3>
+      <div class="gen-section">
+        <h4>📌 基本設定</h4>
+        <div class="fr">
+          <div class="fg"><label>開始年</label><input type="number" id="genYear" value="2026" min="2020" max="2099" style="width:90px"></div>
+          <div class="fg"><label>開始月</label>
+            <select id="genStartMonth">
+              <option value="4">4月</option><option value="5">5月</option><option value="6" selected>6月</option>
+              <option value="7">7月</option><option value="8">8月</option>
+            </select>
+          </div>
+          <div class="fg"><label>期間（月数）</label><input type="number" id="genMonths" value="12" min="6" max="24" style="width:80px"></div>
+        </div>
+      </div>
+      <div class="gen-section">
+        <h4>📅 セミナー開催月・週・名称を選択</h4>
+        <p class="note" style="margin-bottom:10px">✅ チェックした月にセミナーを設定。12月・1月は選択不可。</p>
+        <div class="month-grid" id="monthGrid"></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn btn-purple" onclick="previewGen()">🔍 プレビューを確認</button>
+      </div>
+      <div id="genPreview"></div>
+    </div>
+
+    <!-- カレンダー表示設定 -->
+    <div class="fc">
+      <h3>📆 カレンダー表示設定</h3>
+      <div class="fr">
+        <div class="fg"><label>開始年</label><input type="number" id="startYear" value="2026" min="2020" max="2099"></div>
+        <div class="fg"><label>開始月</label>
+          <select id="startMonth">
+            <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+            <option value="4">4月</option><option value="5">5月</option><option value="6" selected>6月</option>
+            <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+            <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+          </select>
+        </div>
+        <div class="fg"><label>表示月数</label><input type="number" id="numMonths" value="12" min="1" max="24"></div>
+        <div class="fg"><label>　</label><button class="btn btn-green" onclick="applySettings()">▶ カレンダーに反映</button></div>
+      </div>
+    </div>
+
+    <!-- バックアップ -->
+    <div class="fc">
+      <h3>💾 バックアップ管理</h3>
+      <div class="fr" style="margin-bottom:12px">
+        <div class="fg"><label>バックアップ名</label><input type="text" id="backupName" placeholder="例：41期_2026年度確定版" style="min-width:240px"></div>
+        <div class="fg"><label>　</label><button class="btn btn-blue" onclick="saveBackup()">📸 今の状態を保存</button></div>
+      </div>
+      <div id="backupList"></div>
+      <p class="note">※ バックアップ保存後は「🚀 保存して公開する」を押して全員に反映してください。</p>
+    </div>
+
+    <!-- NG日管理 -->
+    <div class="fc">
+      <h3>🚫 NG日の管理</h3>
+      <div id="ngGroupList"></div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #eee">
+        <h4 style="font-size:13px;margin-bottom:8px;color:#555">グループを追加</h4>
+        <div class="fr">
+          <div class="fg"><label>グループ名</label><input type="text" id="newNgName" placeholder="例：CSTウェビナー2027年上期" style="min-width:200px"></div>
+          <div class="fg"><label>　</label><button class="btn btn-ng" onclick="addNgGroup()">＋ グループ追加</button></div>
+        </div>
+        <div class="fr" style="align-items:flex-end;gap:8px;margin-top:8px">
+          <div class="fg"><label>追加先グループ</label><select id="ngTargetGroup" style="min-width:200px"></select></div>
+          <div class="fg"><label>日付</label><input type="date" id="newNgDate"></div>
+          <div class="fg"><label>　</label><button class="btn btn-ng" onclick="addNgDate()">日付を追加</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 休業期間 -->
+    <div class="fc">
+      <h3>🏖 休業期間の設定</h3>
+      <div id="blockedList"></div>
+      <div class="fr">
+        <div class="fg"><label>名称</label><input type="text" id="newBlockName" placeholder="例：夏季休暇" style="min-width:140px"></div>
+        <div class="fg"><label>開始日</label><input type="date" id="newBlockStart"></div>
+        <div class="fg"><label>終了日</label><input type="date" id="newBlockEnd"></div>
+        <div class="fg"><label>　</label><button class="btn btn-blue" onclick="addBlocked()">追加</button></div>
+      </div>
+    </div>
+
+    <!-- イベント追加 -->
+    <div class="fc">
+      <h3>＋ イベントを個別追加</h3>
+      <div class="fr">
+        <div class="fg"><label>日付</label><input type="date" id="newDate"></div>
+        <div class="fg"><label>種別</label>
+          <select id="newType">
+            <option value="seminar">SBTセミナー開催日</option>
+            <option value="mail">セミナー案内メール配信</option>
+            <option value="chirashi">チラシ・DM・メルマガ締切</option>
+            <option value="video">動画作成締切＆納品</option>
+            <option value="share">他支社共有予定日</option>
+            <option value="meeting">打ち合わせ</option>
+          </select>
+        </div>
+        <div class="fg"><label>メモ</label><input type="text" id="newLabel" placeholder="例：第1回セミナー" style="min-width:200px"></div>
+        <div class="fg"><label>　</label><button class="btn btn-blue" onclick="addEvent()">追加</button></div>
+      </div>
+    </div>
+
+    <!-- イベント一覧 -->
+    <div class="fc">
+      <h3>登録済みイベント一覧</h3>
+      <table class="et">
+        <thead><tr><th>日付</th><th>曜日</th><th>種別</th><th>メモ</th><th>操作</th></tr></thead>
+        <tbody id="eventTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 使い方画面 -->
+<div id="screen-guide" class="screen">
+  <div style="max-width:860px">
+    <div style="font-size:16px;font-weight:bold;color:#2F5496;margin-bottom:16px">📖 使い方・設定手順</div>
+    <!-- 仕組みの説明 -->
+    <div style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:20px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px">🔄 データ共有の仕組み</div>
+      <div style="background:#f0f7ff;border-left:4px solid #4472C4;padding:12px 16px;border-radius:0 4px 4px 0;font-size:13px;line-height:1.8">
+        <strong>全員が常に同じデータを見られます。</strong><br>
+        データはGitHub上の<code>data.json</code>ファイルで一元管理しています。<br>
+        管理画面を開くと自動で最新データを取得します。<br>
+        編集後は「🚀 保存して公開する」を押すと全員の画面に反映されます。
+      </div>
+    </div>
+    <!-- 目次 -->
+    <div style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:16px;margin-bottom:20px">
+      <div style="font-size:14px;font-weight:bold;margin-bottom:10px;color:#2F5496">📋 目次</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px">
+        <a href="#g1" style="color:#4472C4;text-decoration:none">① カレンダーを見る方法（全員）</a>
+        <a href="#g2" style="color:#4472C4;text-decoration:none">② 初回設定：GitHubトークンの登録（更新担当者のみ・ブラウザごとに1回）</a>
+        <a href="#g3" style="color:#4472C4;text-decoration:none">③ 編集前に最新データを取得する</a>
+        <a href="#g4" style="color:#4472C4;text-decoration:none">④ イベントを追加・編集・削除する</a>
+        <a href="#g5" style="color:#4472C4;text-decoration:none">⑤ 保存して全員に反映する</a>
+        <a href="#g6" style="color:#4472C4;text-decoration:none">⑥ 間違えたときに元に戻す</a>
+        <a href="#g7" style="color:#4472C4;text-decoration:none">⑦ バックアップと復元</a>
+        <a href="#g8" style="color:#4472C4;text-decoration:none">⑧ 年間スケジュールを自動生成する</a>
+        <a href="#g9" style="color:#4472C4;text-decoration:none">⑨ よくある質問</a>
+      </div>
+    </div>
+
+    <!-- ① 閲覧 -->
+    <div id="g1" style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px;border-bottom:2px solid var(--wkh);padding-bottom:8px">① カレンダーを見る方法（全員・設定不要）</div>
+      <div style="font-size:13px;line-height:2">
+        <div style="background:#e8f5e9;border-left:4px solid #70AD47;padding:8px 14px;border-radius:0 4px 4px 0;margin-bottom:10px">
+          <strong>閲覧だけのメンバーはトークン設定不要です。URLを開くだけでOKです。</strong>
+        </div>
+        ・TeamsのタブまたはURL（<a href="https://k-higa-oss.github.io/sbt-calendar/" target="_blank" style="color:#4472C4">https://k-higa-oss.github.io/sbt-calendar/</a>）を開く<br>
+        ・最新の情報が表示されない場合は <strong>Ctrl+Shift+R</strong>（強制リロード）を押す
+      </div>
+    </div>
+
+    <!-- ② トークン -->
+    <div id="g2" style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px;border-bottom:2px solid var(--wkh);padding-bottom:8px">② 初回設定：GitHubトークンの登録（更新担当者のみ・ブラウザごとに1回）</div>
+      <div style="background:#fff3cd;border:1px solid #ffc;border-radius:4px;padding:8px;margin-bottom:10px;font-size:12px">
+        ⚠️ 更新担当者のみ必要。閲覧だけのメンバーは不要。ブラウザごとに1回設定が必要。
+      </div>
+      <div style="font-size:13px;line-height:2">
+        <strong>【Step 1】トークンを発行する</strong><br>
+        <ol style="padding-left:20px;margin-bottom:10px">
+          <li><a href="https://github.com/settings/tokens/new?scopes=repo&description=SBT-Cal" target="_blank" style="color:#4472C4">こちらをクリックしてGitHubのトークン発行画面を開く</a></li>
+          <li>「Note」に任意の名前を入力（例：<strong>SBT-Cal-自分の名前</strong>）</li>
+          <li>「Expiration」で有効期限を選択（1 year 推奨）</li>
+          <li>「repo」にチェックが入っていることを確認</li>
+          <li>ページ下部「<strong>Generate token</strong>」をクリック</li>
+          <li>表示された <strong>ghp_〜</strong> をコピーしてメモ帳などに保存<br>
+            <span style="color:#c00;font-size:11px">※ この画面を閉じると二度と表示されません！必ず保存してください</span></li>
+        </ol>
+        <strong>【Step 2】カレンダーに登録する</strong><br>
+        <ol style="padding-left:20px">
+          <li>管理画面の「<strong>⚙ GitHub設定</strong>」をクリック</li>
+          <li>GitHubユーザー名：<code>k-higa-oss</code></li>
+          <li>リポジトリ名：<code>sbt-calendar</code></li>
+          <li>Personal Access Token：Step1でコピーした ghp_〜 を貼り付け</li>
+          <li>「💾 保存」をクリック → 「✅ 接続設定済み」と表示されれば完了</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ③ 最新取得 -->
+    <div id="g3" style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px;border-bottom:2px solid var(--wkh);padding-bottom:8px">③ 編集前に最新データを取得する（重要）</div>
+      <div style="font-size:13px;line-height:2">
+        <div style="background:#f0f7ff;border-left:4px solid #4472C4;padding:8px 14px;border-radius:0 4px 4px 0;margin-bottom:10px">
+          <strong>複数人で使う場合、編集前に必ず最新データを取得してください。</strong><br>
+          他の担当者が更新したデータを取り込んでから編集することで、上書きを防げます。
+        </div>
+        <ol style="padding-left:20px">
+          <li>管理画面の「<strong>🔄 最新データを取得</strong>」ボタンをクリック</li>
+          <li>「✅ 最新データを取得しました」と表示されれば完了</li>
+          <li>その後イベントの追加・編集を行う</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ④ 編集 -->
+    <div id="g4" style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px;border-bottom:2px solid var(--wkh);padding-bottom:8px">④ イベントを追加・編集・削除する</div>
+      <div style="font-size:13px;line-height:2">
+        <strong>追加：</strong>「＋ イベントを個別追加」セクションで日付・種別・メモを入力して「追加」<br>
+        <strong>編集：</strong>「登録済みイベント一覧」の「編集」ボタンをクリック<br>
+        <strong>削除：</strong>「登録済みイベント一覧」の「削除」ボタンをクリック<br>
+        <div style="background:#e8f5e9;border-left:4px solid #70AD47;padding:8px 14px;border-radius:0 4px 4px 0;margin-top:8px;font-size:12px">
+          💡 土日・祝日・休業期間にはイベントを登録できません（自動でエラー表示）
+        </div>
+      </div>
+    </div>
+
+    <!-- ⑤ 保存 -->
+    <div id="g5" style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px;border-bottom:2px solid var(--wkh);padding-bottom:8px">⑤ 保存して全員に反映する</div>
+      <div style="font-size:13px;line-height:2">
+        <ol style="padding-left:20px">
+          <li>管理画面の「<strong>🚀 保存して公開する</strong>」をクリック</li>
+          <li>「✅ 公開完了！」と表示されれば成功</li>
+          <li>1〜3分後に全員の画面に反映される</li>
+          <li>反映されない場合は <strong>Ctrl+Shift+R</strong> を押す</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ⑥ UNDO -->
+    <div id="g6" style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px;border-bottom:2px solid var(--wkh);padding-bottom:8px">⑥ 間違えたときに元に戻す</div>
+      <div style="font-size:13px;line-height:2">
+        管理画面最上部の「<strong>↩ 元に戻す</strong>」ボタンをクリック（最大5回前まで戻せる）<br>
+        元に戻したら⑤の手順で保存してください。<br>
+        <div style="background:#fff3cd;border:1px solid #ffc;border-radius:4px;padding:8px;margin-top:8px;font-size:12px">
+          ⚠️ ページをリロードするとUNDO履歴は消えます。気づいたらすぐ使ってください。
+        </div>
+      </div>
+    </div>
+
+    <!-- ⑦ バックアップ -->
+    <div id="g7" style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px;border-bottom:2px solid var(--wkh);padding-bottom:8px">⑦ バックアップと復元</div>
+      <div style="font-size:13px;line-height:2">
+        <strong>保存：</strong>「💾 バックアップ管理」でバックアップ名を入力 → 「📸 今の状態を保存」→ ⑤で公開<br>
+        <strong>復元：</strong>バックアップ一覧の「↩ 復元」をクリック → ⑤で公開
+      </div>
+    </div>
+
+    <!-- ⑧ 自動生成 -->
+    <div id="g8" style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px;border-bottom:2px solid var(--wkh);padding-bottom:8px">⑧ 年間スケジュールを自動生成する</div>
+      <div style="font-size:13px;line-height:2">
+        <ol style="padding-left:20px">
+          <li>先に⑦でバックアップを保存する</li>
+          <li>「🚀 年間スケジュール自動生成」セクションで開始年・月・期間を設定</li>
+          <li>セミナー開催月にチェックを入れ、希望週・名称を入力</li>
+          <li>「🔍 プレビューを確認」で内容を確認</li>
+          <li>「✅ 一括登録する」→ ⑤で公開</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ⑨ FAQ -->
+    <div id="g9" style="background:#fff;border-radius:6px;box-shadow:var(--sh);padding:18px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:bold;color:#2F5496;margin-bottom:10px;border-bottom:2px solid var(--wkh);padding-bottom:8px">⑨ よくある質問</div>
+      <div style="font-size:13px;line-height:1.9">
+        <div style="margin-bottom:12px"><div style="font-weight:bold;color:#c05000">Q. 更新したのに画面が変わらない</div>
+        <div style="padding-left:12px">A. Ctrl+Shift+R（強制リロード）を押してください。それでも変わらない場合は1〜3分待ってから再度試してください。</div></div>
+        <div style="margin-bottom:12px"><div style="font-weight:bold;color:#c05000">Q. 「未設定」と表示されてアップロードできない</div>
+        <div style="padding-left:12px">A. ②の手順でトークンを登録してください。ブラウザごとに1回必要です。</div></div>
+        <div style="margin-bottom:12px"><div style="font-weight:bold;color:#c05000">Q. 複数人で同時に編集したらどうなる？</div>
+        <div style="padding-left:12px">A. 後から保存した人のデータが最終版になります。編集前に必ず③「最新データを取得」を押してください。</div></div>
+        <div style="margin-bottom:12px"><div style="font-weight:bold;color:#c05000">Q. トークンはいつまで使える？</div>
+        <div style="padding-left:12px">A. 発行時に設定した有効期限まで（1年設定なら1年間）。期限切れの場合は②の手順で再発行してください。</div></div>
+        <div><div style="font-weight:bold;color:#c05000">Q. 誤って全データを消してしまった</div>
+        <div style="padding-left:12px">A. ⑥の「元に戻す」か⑦の「バックアップから復元」を試してください。</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GitHub設定モーダル -->
+<div class="modal-overlay" id="ghModal">
+  <div class="modal">
+    <h3>⚙ GitHub設定</h3>
+    <div class="fg" style="margin-bottom:12px"><label>GitHubユーザー名</label><input type="text" id="ghUser" placeholder="例：k-higa-oss"></div>
+    <div class="fg" style="margin-bottom:12px"><label>リポジトリ名</label><input type="text" id="ghRepo" placeholder="例：sbt-calendar"></div>
+    <div class="fg" style="margin-bottom:12px">
+      <label>Personal Access Token
+        <a href="https://github.com/settings/tokens/new?scopes=repo&description=SBT-Cal" target="_blank" style="font-size:11px;color:#4472C4;margin-left:8px">→ トークンを取得する</a>
+      </label>
+      <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+      <p style="font-size:11px;color:#888;margin-top:4px">※ トークンはこのブラウザにのみ保存されます</p>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-blue" onclick="saveGHSettings()">💾 保存</button>
+      <button class="btn" style="background:#aaa;color:#fff" onclick="closeGHModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- イベント編集モーダル -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>✏ イベントを編集</h3>
+    <input type="hidden" id="editId">
+    <div class="fg"><label>日付</label><input type="date" id="editDate"></div>
+    <div class="fg" style="margin-top:10px"><label>種別</label>
+      <select id="editType">
+        <option value="seminar">SBTセミナー開催日</option>
+        <option value="mail">セミナー案内メール配信</option>
+        <option value="chirashi">チラシ・DM・メルマガ締切</option>
+        <option value="video">動画作成締切＆納品</option>
+        <option value="share">他支社共有予定日</option>
+        <option value="meeting">打ち合わせ</option>
+      </select>
+    </div>
+    <div class="fg" style="margin-top:10px"><label>メモ</label><input type="text" id="editLabel"></div>
+    <div class="modal-btns">
+      <button class="btn btn-blue" onclick="saveEdit()">保存</button>
+      <button class="btn" style="background:#aaa;color:#fff" onclick="document.getElementById('editModal').classList.remove('active')">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =====================================================
+// 定数・型情報
+// =====================================================
+const TI={
+  seminar: {label:'SBTセミナー開催日',       color:'#4472C4',text:'#fff'},
+  mail:    {label:'セミナー案内メール配信',   color:'#70AD47',text:'#fff'},
+  chirashi:{label:'チラシ・DM・メルマガ締切', color:'#FFC000',text:'#333'},
+  video:   {label:'動画作成締切＆納品',       color:'#ED7D31',text:'#fff'},
+  share:   {label:'他支社共有予定日',         color:'#9DC3E6',text:'#333'},
+  meeting: {label:'打ち合わせ',               color:'#7030A0',text:'#fff'},
+};
+const WD=['日','月','火','水','木','金','土'];
+const MN=['','1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const NO_SEM=[12,1];
+
+// =====================================================
+// アプリ状態（メモリ上）
+// =====================================================
+let APP = {
+  events:[], blocked:[], config:{startYear:2026,startMonth:6,numMonths:12},
+  ng_dates:[], ng_groups:[], rules:[], backups:[], undo_history:[]
+};
+
+// =====================================================
+// GitHub設定（LocalStorageのみ・HTMLには含めない）
+// =====================================================
+const GH_KEY = 'sbt_gh_v8';
+function loadGH(){ try{return JSON.parse(localStorage.getItem(GH_KEY))||{};}catch{return{};} }
+function saveGH(v){ localStorage.setItem(GH_KEY,JSON.stringify(v)); }
+
+function showGHModal(){
+  const s=loadGH();
+  document.getElementById('ghUser').value  = s.user||'k-higa-oss';
+  document.getElementById('ghRepo').value  = s.repo||'sbt-calendar';
+  document.getElementById('ghToken').value = s.token||'';
+  document.getElementById('ghModal').classList.add('active');
+}
+function closeGHModal(){ document.getElementById('ghModal').classList.remove('active'); }
+function saveGHSettings(){
+  const user=document.getElementById('ghUser').value.trim();
+  const repo=document.getElementById('ghRepo').value.trim();
+  const token=document.getElementById('ghToken').value.trim();
+  if(!user||!repo||!token){alert('すべての項目を入力してください。');return;}
+  saveGH({user,repo,token});
+  closeGHModal();
+  updateGHStatus();
+  alert('GitHub設定を保存しました！');
+}
+function updateGHStatus(){
+  const s=loadGH(), div=document.getElementById('githubStatus');
+  if(!div)return;
+  if(s.user&&s.repo&&s.token){
+    div.innerHTML=`<span style="color:#217346;font-size:12px">✅ 接続設定済み：<strong>${s.user}/${s.repo}</strong></span>`;
+    const btn=document.getElementById('publishBtn');
+    if(btn){btn.style.background='#217346';btn.disabled=false;btn.textContent='🚀 保存して公開する';}
+  } else {
+    div.innerHTML=`<span style="color:#c05000;font-size:12px">⚠️ 未設定 → 右の「⚙ GitHub設定」からトークンを登録してください</span>`;
+    const btn=document.getElementById('publishBtn');
+    if(btn){btn.style.background='#888';}
+  }
+}
+
+// =====================================================
+// GitHubからデータを取得
+// =====================================================
+async function fetchFromGitHub(silent=false){
+  const s=loadGH();
+  if(!s.user||!s.repo){
+    if(!silent)alert('GitHub設定が未完了です。「⚙ GitHub設定」からトークンを登録してください。');
+    return false;
+  }
+  const statusEl=document.getElementById('calSyncStatus');
+  if(statusEl) statusEl.innerHTML='<div class="loading-bar">🔄 最新データを取得中...</div>';
+  try{
+    // キャッシュを回避するためにタイムスタンプを付加
+    const url=`https://raw.githubusercontent.com/${s.user}/${s.repo}/main/data.json?t=${Date.now()}`;
+    const res=await fetch(url);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data=await res.json();
+    // APP_DATAを更新（undo_historyは保持）
+    const undo=APP.undo_history;
+    APP=data;
+    APP.undo_history=undo;
+    if(!APP.backups) APP.backups=[];
+    renderAll();
+    if(statusEl) statusEl.innerHTML='<div style="font-size:11px;color:#888;margin-bottom:8px">🔄 最終同期：'+new Date().toLocaleTimeString('ja-JP')+'</div>';
+    if(!silent) alert('✅ 最新データを取得しました！');
+    return true;
+  } catch(e){
+    if(statusEl) statusEl.innerHTML='';
+    // data.jsonが存在しない場合は初回として続行
+    if(!silent) alert('データの取得に失敗しました。\n初回の場合は「🚀 保存して公開する」を押してデータを作成してください。\n\nエラー：'+e.message);
+    return false;
+  }
+}
+
+// =====================================================
+// GitHubにデータを保存（data.json + index.html）
+// =====================================================
+async function publishToGitHub(){
+  const s=loadGH();
+  if(!s.user||!s.repo||!s.token){
+    alert('GitHub設定が未完了です。');
+    showGHModal();
+    return;
+  }
+  const btn=document.getElementById('publishBtn');
+  btn.disabled=true; btn.textContent='⏳ 保存中...';
+  try{
+    // data.json を保存
+    const dataContent=btoa(unescape(encodeURIComponent(JSON.stringify(APP,null,2))));
+    const dataSha=await getFileSha(s,'data.json');
+    const dataRes=await putFile(s,'data.json',dataContent,dataSha,'データ更新 '+new Date().toLocaleString('ja-JP'));
+    if(!dataRes.ok) throw new Error('data.json の保存に失敗しました');
+
+    btn.disabled=false; btn.textContent='✅ 公開完了！';
+    btn.style.background='#217346';
+    setTimeout(()=>{ btn.textContent='🚀 保存して公開する'; },3000);
+    alert('✅ GitHubへの保存が完了しました！\n1〜3分後に全員の画面に反映されます。');
+  } catch(e){
+    btn.disabled=false; btn.textContent='🚀 保存して公開する';
+    alert('❌ エラーが発生しました：\n'+e.message+'\n\nトークンの有効期限切れの可能性があります。');
+  }
+}
+
+async function getFileSha(s, path){
+  const res=await fetch(`https://api.github.com/repos/${s.user}/${s.repo}/contents/${path}`,
+    {headers:{'Authorization':'token '+s.token,'Accept':'application/vnd.github.v3+json'}});
+  if(res.ok){const d=await res.json();return d.sha||'';}
+  return '';
+}
+async function putFile(s, path, content, sha, message){
+  const body={message,content};
+  if(sha) body.sha=sha;
+  return fetch(`https://api.github.com/repos/${s.user}/${s.repo}/contents/${path}`,{
+    method:'PUT',
+    headers:{'Authorization':'token '+s.token,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+}
+
+// HTMLエクスポート（ローカル保存用）
+function exportHTML(){
+  const htmlStr=document.documentElement.outerHTML;
+  const blob=new Blob([htmlStr],{type:'text/html;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const now=new Date();
+  a.download=`SBT稼働推進カレンダー_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.html`;
+  a.click();
+}
+
+// =====================================================
+// 日付ユーティリティ
+// =====================================================
+function ds(yr,mo,dy){return`${yr}-${String(mo).padStart(2,'0')}-${String(dy).padStart(2,'0')}`;}
+function baseHol(yr,mo,dy){
+  const k=mo*100+dy;
+  const f={101:'元日',211:'建国記念の日',223:'天皇誕生日',429:'昭和の日',503:'憲法記念日',504:'みどりの日',505:'こどもの日',811:'山の日',1103:'文化の日',1123:'勤労感謝の日'};
+  if(f[k])return f[k];
+  const wd=new Date(yr,mo-1,dy).getDay(),wk=Math.floor((dy-1)/7)+1;
+  if(mo===1 &&wd===1&&wk===2)return'成人の日';
+  if(mo===7 &&wd===1&&wk===3)return'海の日';
+  if(mo===9 &&wd===1&&wk===3)return'敬老の日';
+  if(mo===10&&wd===1&&wk===2)return'スポーツの日';
+  const sh=Math.floor(20.8431+0.242194*(yr-1980)-Math.floor((yr-1980)/4));
+  const su=Math.floor(23.2488+0.242194*(yr-1980)-Math.floor((yr-1980)/4));
+  if(mo===3&&dy===sh)return'春分の日';
+  if(mo===9&&dy===su)return'秋分の日';
+  return null;
+}
+function getHol(yr,mo,dy){
+  const b=baseHol(yr,mo,dy);if(b)return b;
+  const dt=new Date(yr,mo-1,dy);
+  if(dt.getDay()===1){const p=new Date(dt);p.setDate(p.getDate()-1);if(baseHol(p.getFullYear(),p.getMonth()+1,p.getDate()))return'振替休日';}
+  if(dt.getDay()>=1&&dt.getDay()<=5){const p=new Date(dt);p.setDate(p.getDate()-1);const n=new Date(dt);n.setDate(n.getDate()+1);if(baseHol(p.getFullYear(),p.getMonth()+1,p.getDate())&&baseHol(n.getFullYear(),n.getMonth()+1,n.getDate()))return'国民の休日';}
+  return null;
+}
+function getBlkName(s){for(const p of APP.blocked)if(s>=p.start&&s<=p.end)return p.name;return null;}
+function getNgName(s){for(const g of (APP.ng_groups||[]))if((g.dates||[]).includes(s))return g.name;return null;}
+function isBiz(s){
+  const dt=new Date(s+'T00:00:00'),wd=dt.getDay(),yr=dt.getFullYear(),mo=dt.getMonth()+1,dy=dt.getDate();
+  return wd>=1&&wd<=5&&!getBlkName(s)&&!getHol(yr,mo,dy);
+}
+function prevBiz(s,n=1){let dt=new Date(s+'T00:00:00'),c=0;while(c<n){dt.setDate(dt.getDate()-1);if(isBiz(ds(dt.getFullYear(),dt.getMonth()+1,dt.getDate())))c++;}return ds(dt.getFullYear(),dt.getMonth()+1,dt.getDate());}
+function nearestBiz(s){let dt=new Date(s+'T00:00:00');while(!isBiz(ds(dt.getFullYear(),dt.getMonth()+1,dt.getDate())))dt.setDate(dt.getDate()+1);return ds(dt.getFullYear(),dt.getMonth()+1,dt.getDate());}
+
+// =====================================================
+// UNDO
+// =====================================================
+function pushUndo(label){
+  const snap={label,time:new Date().toLocaleString('ja-JP'),data:JSON.stringify({events:APP.events,blocked:APP.blocked,config:APP.config,ng_dates:APP.ng_dates,ng_groups:APP.ng_groups})};
+  APP.undo_history.unshift(snap);
+  if(APP.undo_history.length>5) APP.undo_history.pop();
+  updateUndoBar();
+}
+function undoAction(){
+  if(!APP.undo_history.length){alert('これ以上戻せません。');return;}
+  const prev=APP.undo_history.shift();
+  const d=JSON.parse(prev.data);
+  APP.events=d.events; APP.blocked=d.blocked; APP.config=d.config; APP.ng_dates=d.ng_dates; APP.ng_groups=d.ng_groups;
+  renderAll(); updateUndoBar();
+  alert('「'+prev.label+'」の操作前に戻しました。\n保存するには「🚀 保存して公開する」を押してください。');
+}
+function updateUndoBar(){
+  const n=APP.undo_history.length;
+  const btn=document.getElementById('undoBtn'),ct=document.getElementById('undoCount');
+  if(btn){btn.disabled=n===0;btn.style.opacity=n===0?'0.4':'1';}
+  if(ct) ct.textContent='操作履歴：'+n+'件';
+}
+
+// =====================================================
+// カレンダー描画
+// =====================================================
+let ngVisible=false;
+function toggleNg(){
+  ngVisible=!ngVisible;
+  const wrap=document.getElementById('calendarWrap'),btn=document.getElementById('ngToggleBtn');
+  if(ngVisible){wrap.classList.add('ng-visible');btn.style.background='#cc0000';btn.textContent='🚫 NG日を非表示にする';}
+  else{wrap.classList.remove('ng-visible');btn.style.background='#888';btn.textContent='🚫 NG日を表示する';}
+}
+function renderCal(){
+  const cfg=APP.config,evs=APP.events,wrap=document.getElementById('calendarWrap');
+  wrap.innerHTML='';
+  const em={};evs.forEach(ev=>(em[ev.date]=em[ev.date]||[]).push(ev));
+  for(let mi=0;mi<cfg.numMonths;mi++){
+    const t=cfg.startMonth-1+mi,yr=cfg.startYear+Math.floor(t/12),mo=(t%12)+1;
+    const blk=document.createElement('div');blk.className='mb';
+    const mh=document.createElement('div');mh.className='mh';mh.textContent=yr+'年 '+MN[mo];blk.appendChild(mh);
+    const wh=document.createElement('div');wh.className='wh';
+    WD.forEach(w=>{const d=document.createElement('div');d.textContent=w;wh.appendChild(d);});blk.appendChild(wh);
+    const fw=new Date(yr,mo-1,1).getDay(),dim=new Date(yr,mo,0).getDate();
+    for(let wk=0;wk<6;wk++){
+      let hd=false;for(let c=0;c<7;c++){const d=wk*7+c-fw+1;if(d>=1&&d<=dim){hd=true;break;}}if(!hd)break;
+      const wr=document.createElement('div');wr.className='wr';
+      for(let c=0;c<7;c++){
+        const dn=wk*7+c-fw+1,cell=document.createElement('div');cell.className='dc';
+        if(dn<1||dn>dim){cell.classList.add('empty');}
+        else{
+          const dateStr=ds(yr,mo,dn),bn=getBlkName(dateStr),hn=getHol(yr,mo,dn),ngName=getNgName(dateStr);
+          const ne=document.createElement('div');ne.className='dn';ne.textContent=dn;cell.appendChild(ne);
+          if(bn){cell.classList.add('blocked');const b=document.createElement('div');b.className='bl';b.textContent=bn;cell.appendChild(b);}
+          else if(hn){cell.classList.add('holiday');const h=document.createElement('div');h.className='hl';h.textContent='🎌 '+hn;cell.appendChild(h);}
+          else if(c===0)cell.classList.add('sunday');
+          else if(c===6)cell.classList.add('saturday');
+          else cell.classList.add('normal');
+          if(ngName){const ng=document.createElement('div');ng.className='ng-label';ng.textContent='🚫 '+ngName;cell.appendChild(ng);}
+          (em[dateStr]||[]).forEach(ev=>{const ti=TI[ev.type];if(!ti)return;const eb=document.createElement('div');eb.className='eb';eb.style.background=ti.color;eb.style.color=ti.text;eb.textContent=ev.label||ti.label;cell.appendChild(eb);});
+        }
+        wr.appendChild(cell);
+      }
+      blk.appendChild(wr);
+    }
+    wrap.appendChild(blk);
+  }
+}
+
+// =====================================================
+// スケジュール自動計算
+// =====================================================
+function calcSched(semDate,semName){
+  const mailf=prevBiz(semDate,2),mail1=prevBiz(mailf,5),share=prevBiz(mail1,5);
+  const chirashi=prevBiz(share,2),video=prevBiz(share,1);
+  const mo=new Date(semDate+'T00:00:00').getMonth()+1;
+  return[
+    {date:chirashi,type:'chirashi',label:'〆切:チラシ・DM・メルマガ('+mo+'月セミナー分)'},
+    {date:video,   type:'video',   label:'動画作成〆切＆納品('+mo+'月セミナー分)'},
+    {date:share,   type:'share',   label:'【重要】他支社共有_'+mo+'月開催分'},
+    {date:mail1,   type:'mail',    label:'セミナー案内メール('+mo+'月)_1回目'},
+    {date:mailf,   type:'mail',    label:'セミナー案内メール('+mo+'月)_最終'},
+    {date:semDate, type:'seminar', label:semName||'セミナー('+mo+'月)'},
+  ];
+}
+function getNthWed(yr,mo,nth){
+  let count=0;
+  for(let dy=1;dy<=31;dy++){const d=new Date(yr,mo-1,dy);if(d.getMonth()!==mo-1)break;if(d.getDay()===3){count++;if(count===nth){const s=ds(yr,mo,dy);return isBiz(s)?s:nearestBiz(s);}}}
+  let last='';for(let dy=1;dy<=31;dy++){const d=new Date(yr,mo-1,dy);if(d.getMonth()!==mo-1)break;if(d.getDay()===3){const s=ds(yr,mo,dy);last=isBiz(s)?s:nearestBiz(s);}}
+  return last||nearestBiz(ds(yr,mo,15));
+}
+
+// =====================================================
+// 月グリッド・プレビュー
+// =====================================================
+function buildMonthGrid(){
+  const yr=parseInt(document.getElementById('genYear').value||2026);
+  const startMo=parseInt(document.getElementById('genStartMonth').value||6);
+  const numMo=parseInt(document.getElementById('genMonths').value||12);
+  const grid=document.getElementById('monthGrid');grid.innerHTML='';
+  for(let i=0;i<numMo;i++){
+    const total=startMo-1+i,mo=(total%12)+1,curYr=yr+Math.floor(total/12);
+    const disabled=NO_SEM.includes(mo);
+    const cell=document.createElement('div');cell.className='month-cell'+(disabled?' disabled':'');cell.id='mcell_'+curYr+'_'+mo;
+    cell.innerHTML='<label class="month-label"><input type="checkbox" id="chk_'+curYr+'_'+mo+'" '+(disabled?'disabled':'')+' onchange="onMoChk(\''+curYr+'\',\''+mo+'\',this)"><span>'+curYr+'/'+MN[mo]+'</span></label><div id="mo_d_'+curYr+'_'+mo+'" style="display:none"><div class="sub-label">希望週</div><select id="wk_'+curYr+'_'+mo+'"><option value="3">第3週（推奨）</option><option value="4">第4週</option><option value="2">第2週</option></select><div class="sub-label">セミナー名</div><input type="text" id="nm_'+curYr+'_'+mo+'" placeholder="例：第1回"></div>';
+    grid.appendChild(cell);
+  }
+}
+function onMoChk(yr,mo,cb){
+  const cell=document.getElementById('mcell_'+yr+'_'+mo),detail=document.getElementById('mo_d_'+yr+'_'+mo);
+  if(cb.checked){cell.classList.add('selected');detail.style.display='block';}
+  else{cell.classList.remove('selected');detail.style.display='none';}
+}
+let pendingBulk=[];
+function previewGen(){
+  const yr=parseInt(document.getElementById('genYear').value);
+  const startMo=parseInt(document.getElementById('genStartMonth').value);
+  const numMo=parseInt(document.getElementById('genMonths').value);
+  const checked=[];
+  for(let i=0;i<numMo;i++){const total=startMo-1+i,mo=(total%12)+1,curYr=yr+Math.floor(total/12);const cb=document.getElementById('chk_'+curYr+'_'+mo);if(cb&&cb.checked){const wk=parseInt(document.getElementById('wk_'+curYr+'_'+mo).value);const nm=document.getElementById('nm_'+curYr+'_'+mo).value.trim();checked.push({yr:curYr,mo,wk,nm});}}
+  if(!checked.length){alert('セミナーを開催する月を1つ以上選択してください。');return;}
+  pendingBulk=[];let semCount=0;const allMo=[];
+  checked.forEach(c=>{const semDate=getNthWed(c.yr,c.mo,c.wk);const no=++semCount;const semName=c.nm||'第'+no+'回セミナー('+c.yr+'/'+MN[c.mo]+')';const evs=calcSched(semDate,semName);allMo.push({yr:c.yr,mo:c.mo,events:evs});pendingBulk.push(...evs);});
+  const sc=['#FFC000','#ED7D31','#9DC3E6','#70AD47','#70AD47','#4472C4'];
+  const sl=['①チラシ〆切','②動画〆切','③支社共有','④メール1回目','⑤メール最終','⑥セミナー'];
+  let html='<div class="preview-wrap"><h4>📋 生成プレビュー（'+checked.length+'回分）</h4>';
+  allMo.forEach(({yr,mo,events})=>{html+='<div class="preview-month"><h5>'+yr+'年'+MN[mo]+'のセミナー</h5>';events.forEach((ev,i)=>{const dt=new Date(ev.date+'T00:00:00');html+='<div class="preview-row"><div class="step-dot" style="background:'+sc[i]+'">'+（i+1)+'</div><span style="width:110px;font-size:11px;color:#555">'+sl[i]+'</span><strong>'+ev.date+'（'+WD[dt.getDay()]+'）</strong><span style="font-size:11px;color:#666;margin-left:8px;flex:1">'+ev.label+'</span></div>';});html+='</div>';});
+  html+='<div style="background:#fff3cd;border:1px solid #ffc;border-radius:4px;padding:10px;margin:10px 0;font-size:12px;">⚠️ 「一括登録」すると既存イベントをすべて削除して新規登録します。</div>';
+  html+='<div style="display:flex;gap:10px"><button class="btn btn-green" onclick="bulkReg()">✅ 一括登録する</button><button class="btn" style="background:#aaa;color:#fff" onclick="document.getElementById(\'genPreview\').innerHTML=\'\'">キャンセル</button></div></div>';
+  document.getElementById('genPreview').innerHTML=html;
+  document.getElementById('genPreview').scrollIntoView({behavior:'smooth'});
+}
+function bulkReg(){
+  if(!pendingBulk.length)return;
+  if(!confirm('既存イベントをすべて削除して'+pendingBulk.length+'件を登録します。よろしいですか？'))return;
+  pushUndo('年間スケジュール一括生成');
+  APP.events=pendingBulk.map((ev,i)=>({id:Date.now()+i,...ev}));
+  pendingBulk=[];document.getElementById('genPreview').innerHTML='';
+  renderAll();
+  alert('登録完了！\n「🚀 保存して公開する」を押して全員に反映してください。');
+}
+
+// =====================================================
+// ルール
+// =====================================================
+let ruleEditMode=false;
+function renderRuleTable(){
+  const rules=APP.rules||[],tbl=document.getElementById('ruleTable');
+  tbl.innerHTML='<thead><tr><th style="width:50px">順番</th><th style="width:200px">項目</th><th>ルール</th>'+(ruleEditMode?'<th style="width:60px">操作</th>':'')+'</tr></thead>';
+  const tb=document.createElement('tbody');
+  rules.forEach((r,i)=>{const tr=document.createElement('tr');if(ruleEditMode){tr.innerHTML='<td><span class="sb">'+r.step+'</span></td><td><input type="text" value="'+r.name+'" style="width:100%;border:1px solid #ccc;border-radius:3px;padding:4px" onchange="APP.rules['+i+\'].name=this.value"></td><td><textarea style="width:100%;min-height:44px;font-size:12px;border:1px solid #ccc;border-radius:3px;padding:4px;resize:vertical" onchange="APP.rules['+i+\'].rule=this.value">'+r.rule+'</textarea></td><td><button class="btn-red" onclick="delRule('+i+')">削除</button></td>';}else{tr.innerHTML='<td><span class="sb">'+r.step+'</span></td><td>'+r.name+'</td><td>'+r.rule+'</td>';}tb.appendChild(tr);});
+  if(ruleEditMode){const ar=document.createElement('tr');ar.innerHTML='<td colspan="4" style="padding:8px"><button class="btn btn-blue" style="font-size:12px;padding:4px 12px" onclick="addRule()">＋ 追加</button> <button class="btn btn-green" style="font-size:12px;padding:4px 12px;margin-left:8px" onclick="saveRuleEdit()">💾 保存</button></td>';tb.appendChild(ar);}
+  tbl.appendChild(tb);
+}
+function toggleRuleEdit(){ruleEditMode=!ruleEditMode;renderRuleTable();}
+function delRule(i){if(!confirm('削除しますか？'))return;APP.rules.splice(i,1);renderRuleTable();}
+function addRule(){APP.rules.push({step:'―',name:'新しい項目',rule:'ルールを入力'});renderRuleTable();}
+function saveRuleEdit(){ruleEditMode=false;renderRuleTable();alert('ルールを保存しました。');}
+
+// =====================================================
+// 設定
+// =====================================================
+function applySettings(){
+  const yr=parseInt(document.getElementById('startYear').value);
+  const mo=parseInt(document.getElementById('startMonth').value);
+  const nm=parseInt(document.getElementById('numMonths').value);
+  if(yr<2020||yr>2099||mo<1||mo>12||nm<1||nm>24){alert('入力値を確認してください。');return;}
+  APP.config={startYear:yr,startMonth:mo,numMonths:nm};renderCal();
+  alert(yr+'年'+mo+'月から'+nm+'ヶ月分に設定しました。\n保存するには「🚀 保存して公開する」を押してください。');
+}
+
+// =====================================================
+// バックアップ
+// =====================================================
+function saveBackup(){
+  const name=document.getElementById('backupName').value.trim();
+  if(!name){alert('バックアップ名を入力してください。');return;}
+  if(!APP.backups) APP.backups=[];
+  APP.backups.unshift({id:Date.now(),name,time:new Date().toLocaleString('ja-JP'),data:JSON.stringify({events:APP.events,blocked:APP.blocked,config:APP.config,ng_dates:APP.ng_dates,ng_groups:APP.ng_groups,rules:APP.rules})});
+  document.getElementById('backupName').value='';
+  renderBackupList();
+  alert('バックアップ「'+name+'」を保存しました。\n「🚀 保存して公開する」を押して全員に反映してください。');
+}
+function restoreBackup(id){
+  const b=APP.backups.find(x=>x.id===id);if(!b)return;
+  if(!confirm('「'+b.name+'」('+b.time+')に復元しますか？\n現在の状態は失われます。'))return;
+  const d=JSON.parse(b.data);
+  APP.events=d.events;APP.blocked=d.blocked;APP.config=d.config;APP.ng_dates=d.ng_dates;APP.ng_groups=d.ng_groups;if(d.rules)APP.rules=d.rules;
+  APP.undo_history=[];
+  renderAll();updateUndoBar();
+  alert('復元しました。\n「🚀 保存して公開する」を押して全員に反映してください。');
+}
+function deleteBackup(id){if(!confirm('削除しますか？'))return;APP.backups=APP.backups.filter(b=>b.id!==id);renderBackupList();}
+function renderBackupList(){
+  const list=document.getElementById('backupList'),bs=APP.backups||[];
+  list.innerHTML='';
+  if(!bs.length){list.innerHTML='<p class="note">バックアップはまだありません。</p>';return;}
+  bs.forEach(b=>{const row=document.createElement('div');row.className='backup-row';row.innerHTML='<div style="flex:1"><div class="backup-name">📁 '+b.name+'</div><div class="backup-time">保存日時：'+b.time+'</div></div><button class="btn btn-green" style="padding:4px 14px;font-size:12px" onclick="restoreBackup('+b.id+')">↩ 復元</button><button class="btn-red" onclick="deleteBackup('+b.id+')">削除</button>';list.appendChild(row);});
+}
+
+// =====================================================
+// NG日管理
+// =====================================================
+function renderNgGroups(){
+  const list=document.getElementById('ngGroupList');if(!list)return;
+  const groups=APP.ng_groups||[];list.innerHTML='';
+  if(!groups.length){list.innerHTML='<p class="note">NG日グループは登録されていません。</p>';}
+  groups.forEach(g=>{
+    const div=document.createElement('div');div.style.cssText='background:#fff8f8;border:1px solid #fcc;border-radius:6px;padding:10px;margin-bottom:10px;';
+    div.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><strong style="color:#c00">🚫 '+g.name+'</strong><button class="btn-red" onclick="delNgGroup('+g.id+')">グループ削除</button></div><div style="display:flex;flex-wrap:wrap;gap:4px" id="ng_d_'+g.id+'"></div>';
+    list.appendChild(div);
+    const dd=document.getElementById('ng_d_'+g.id);
+    (g.dates||[]).forEach(d=>{const dt=new Date(d+'T00:00:00');const span=document.createElement('span');span.style.cssText='background:#ffe0e0;border:1px solid #fcc;border-radius:3px;padding:2px 6px;font-size:12px;display:flex;align-items:center;gap:4px;';span.innerHTML=d+'（'+WD[dt.getDay()]+'）<button style="background:none;border:none;color:#c00;cursor:pointer;font-size:14px;padding:0" onclick="delNgDate('+g.id+',\''+d+'\')">×</button>';dd.appendChild(span);});
+  });
+  const sel=document.getElementById('ngTargetGroup');
+  if(sel){sel.innerHTML='';groups.forEach(g=>{const o=document.createElement('option');o.value=g.id;o.textContent=g.name;sel.appendChild(o);});}
+}
+function addNgGroup(){const name=document.getElementById('newNgName').value.trim();if(!name){alert('グループ名を入力してください。');return;}if(!APP.ng_groups)APP.ng_groups=[];APP.ng_groups.push({id:Date.now(),name,dates:[]});document.getElementById('newNgName').value='';renderNgGroups();renderCal();alert('グループ「'+name+'」を作成しました。次に日付を追加してください。');}
+function delNgGroup(id){if(!confirm('このグループとすべての日付を削除しますか？'))return;APP.ng_groups=(APP.ng_groups||[]).filter(g=>g.id!==id);APP.ng_dates=[];(APP.ng_groups||[]).forEach(g=>(g.dates||[]).forEach(d=>APP.ng_dates.push(d)));renderNgGroups();renderCal();}
+function addNgDate(){const date=document.getElementById('newNgDate').value;const gid=parseInt(document.getElementById('ngTargetGroup').value);if(!date){alert('日付を入力してください。');return;}const group=(APP.ng_groups||[]).find(g=>g.id===gid);if(!group){alert('グループを選択してください。');return;}if(!group.dates)group.dates=[];if(group.dates.includes(date)){alert('すでに登録済みです。');return;}group.dates.push(date);group.dates.sort();APP.ng_dates=[];(APP.ng_groups||[]).forEach(g=>(g.dates||[]).forEach(d=>APP.ng_dates.push(d)));document.getElementById('newNgDate').value='';renderNgGroups();renderCal();}
+function delNgDate(gid,date){const group=(APP.ng_groups||[]).find(g=>g.id===gid);if(group)group.dates=(group.dates||[]).filter(d=>d!==date);APP.ng_dates=[];(APP.ng_groups||[]).forEach(g=>(g.dates||[]).forEach(d=>APP.ng_dates.push(d)));renderNgGroups();renderCal();}
+
+// =====================================================
+// 休業期間
+// =====================================================
+function renderBlk(){
+  const list=document.getElementById('blockedList'),ps=APP.blocked||[];list.innerHTML='';
+  if(!ps.length){list.innerHTML='<p class="note">休業期間は登録されていません。</p>';return;}
+  ps.forEach(p=>{const r=document.createElement('div');r.className='blrow';r.innerHTML='<span class="bltag">'+p.name+'</span><span>'+p.start+' 〜 '+p.end+'</span><button class="btn-red" onclick="delBlk('+p.id+')">削除</button>';list.appendChild(r);});
+}
+function addBlocked(){
+  const name=document.getElementById('newBlockName').value.trim(),start=document.getElementById('newBlockStart').value,end=document.getElementById('newBlockEnd').value;
+  if(!name||!start||!end){alert('名称・開始日・終了日を入力してください。');return;}
+  if(start>end){alert('終了日は開始日以降にしてください。');return;}
+  APP.blocked.push({id:Date.now(),name,start,end});APP.blocked.sort((a,b)=>a.start.localeCompare(b.start));
+  document.getElementById('newBlockName').value='';document.getElementById('newBlockStart').value='';document.getElementById('newBlockEnd').value='';
+  renderBlk();renderCal();alert('「'+name+'」を登録しました。');
+}
+function delBlk(id){if(!confirm('削除しますか？'))return;APP.blocked=APP.blocked.filter(p=>p.id!==id);renderBlk();renderCal();}
+
+// =====================================================
+// イベント操作
+// =====================================================
+function addEvent(){
+  const date=document.getElementById('newDate').value,type=document.getElementById('newType').value,label=document.getElementById('newLabel').value.trim();
+  if(!date){alert('日付を入力してください。');return;}
+  if(!isBiz(date)){const dt=new Date(date+'T00:00:00'),yr=dt.getFullYear(),mo=dt.getMonth()+1,dy=dt.getDate();const bn=getBlkName(date),hn=getHol(yr,mo,dy);alert((bn?'休業期間（'+bn+'）':hn?'祝日（'+hn+'）':'土日')+'のためイベントを登録できません。');return;}
+  if((APP.ng_dates||[]).includes(date)){if(!confirm('この日はNG日（'+getNgName(date)+'）に設定されています。\nそれでも登録しますか？'))return;}
+  pushUndo('イベント追加：'+label);
+  APP.events.push({id:Date.now(),date,type,label});APP.events.sort((a,b)=>a.date.localeCompare(b.date));
+  document.getElementById('newDate').value='';document.getElementById('newLabel').value='';
+  renderEvTable();renderCal();alert('追加しました！\n「🚀 保存して公開する」を押して全員に反映してください。');
+}
+function openEdit(id){const ev=APP.events.find(e=>e.id===id);if(!ev)return;document.getElementById('editId').value=id;document.getElementById('editDate').value=ev.date;document.getElementById('editType').value=ev.type;document.getElementById('editLabel').value=ev.label;document.getElementById('editModal').classList.add('active');}
+function saveEdit(){
+  const id=parseInt(document.getElementById('editId').value),date=document.getElementById('editDate').value,type=document.getElementById('editType').value,label=document.getElementById('editLabel').value.trim();
+  if(!date){alert('日付を入力してください。');return;}
+  if(!isBiz(date)){const dt=new Date(date+'T00:00:00'),yr=dt.getFullYear(),mo=dt.getMonth()+1,dy=dt.getDate();const bn=getBlkName(date),hn=getHol(yr,mo,dy);alert((bn?'休業期間（'+bn+'）':hn?'祝日（'+hn+'）':'土日')+'のためこの日付には設定できません。');return;}
+  pushUndo('イベント編集：'+label);
+  APP.events=APP.events.map(e=>e.id===id?{...e,date,type,label}:e);
+  document.getElementById('editModal').classList.remove('active');renderEvTable();renderCal();alert('更新しました！\n「🚀 保存して公開する」を押して全員に反映してください。');
+}
+function delEv(id){const ev=APP.events.find(e=>e.id===id);if(!confirm('削除しますか？'))return;pushUndo('イベント削除：'+(ev?ev.label:''));APP.events=APP.events.filter(e=>e.id!==id);renderEvTable();renderCal();}
+function renderEvTable(){
+  const evs=APP.events,body=document.getElementById('eventTableBody');body.innerHTML='';
+  if(!evs.length){body.innerHTML='<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">登録されたイベントはありません</td></tr>';return;}
+  evs.forEach(ev=>{const ti=TI[ev.type]||{label:ev.type,color:'#888',text:'#fff'};const dt=new Date(ev.date+'T00:00:00');const tr=document.createElement('tr');tr.innerHTML='<td>'+ev.date+'</td><td>'+WD[dt.getDay()]+'</td><td><span class="bs" style="background:'+ti.color+';color:'+ti.text+'">'+ti.label+'</span></td><td>'+(ev.label||'―')+'</td><td style="white-space:nowrap"><button class="btn-edit" onclick="openEdit('+ev.id+')">編集</button> <button class="btn-red" onclick="delEv('+ev.id+')">削除</button></td>';body.appendChild(tr);});
+}
+
+// =====================================================
+// まとめて描画
+// =====================================================
+function renderAll(){
+  renderCal();
+  const cfg=APP.config;
+  const sy=document.getElementById('startYear'),sm=document.getElementById('startMonth'),nm=document.getElementById('numMonths');
+  if(sy) sy.value=cfg.startYear;
+  if(sm) sm.value=cfg.startMonth;
+  if(nm) nm.value=cfg.numMonths;
+}
+function renderAdmin(){
+  renderRuleTable();renderEvTable();renderBlk();renderNgGroups();renderBackupList();updateUndoBar();buildMonthGrid();
+  const btn=document.getElementById('publishBtn');
+  if(btn){btn.disabled=false;btn.textContent='🚀 保存して公開する';}
+  updateGHStatus();
+}
+
+// =====================================================
+// 画面切り替え
+// =====================================================
+function showScreen(name,btn){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='admin') renderAdmin();
+}
+
+// =====================================================
+// 初期表示：GitHubからデータを自動取得
+// =====================================================
+['genYear','genStartMonth','genMonths'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.addEventListener('change',()=>buildMonthGrid());
+});
+
+(async function init(){
+  // まずGitHubからデータを取得
+  const ok=await fetchFromGitHub(true);
+  if(!ok){
+    // 取得失敗時はデフォルトデータを使用
+    APP.events=[
+      {id:1,date:'2026-06-23',type:'seminar',label:'SBT初回打ち合わせ'},
+      {id:2,date:'2026-07-24',type:'chirashi',label:'〆切:チラシ・DM・メルマガ(8月セミナー分)'},
+      {id:3,date:'2026-07-24',type:'video',label:'動画作成〆切＆納品(8月セミナー分)'},
+      {id:4,date:'2026-07-28',type:'share',label:'【重要】他支社共有_8月開催分'},
+      {id:5,date:'2026-08-03',type:'mail',label:'セミナー案内メール(8月)_1回目'},
+      {id:6,date:'2026-08-18',type:'mail',label:'セミナー案内メール(8月)_最終'},
+      {id:7,date:'2026-08-20',type:'seminar',label:'第1回(施工計画書編①②)'},
+      {id:8,date:'2026-09-07',type:'chirashi',label:'〆切:チラシ・DM・メルマガ(9月セミナー分)'},
+      {id:9,date:'2026-09-08',type:'video',label:'動画作成〆切＆納品(9月セミナー分)'},
+      {id:10,date:'2026-09-09',type:'share',label:'【重要】他支社共有_9月開催分'},
+      {id:11,date:'2026-09-16',type:'mail',label:'セミナー案内メール(9月)_1回目'},
+      {id:12,date:'2026-09-28',type:'mail',label:'セミナー案内メール(9月)_最終'},
+      {id:13,date:'2026-09-30',type:'seminar',label:'第2回(施工計画書編③+施工実施記録編)'},
+      {id:14,date:'2026-10-07',type:'chirashi',label:'〆切:チラシ・DM・メルマガ(10月セミナー分)'},
+      {id:15,date:'2026-10-08',type:'video',label:'動画作成〆切＆納品(10月セミナー分)'},
+      {id:16,date:'2026-10-09',type:'share',label:'【重要】他支社共有_10月開催分'},
+      {id:17,date:'2026-10-19',type:'mail',label:'セミナー案内メール(10月)_1回目'},
+      {id:18,date:'2026-10-26',type:'mail',label:'セミナー案内メール(10月)_最終'},
+      {id:19,date:'2026-10-28',type:'seminar',label:'第3回(施工実施・記録編①)'},
+      {id:20,date:'2026-11-05',type:'chirashi',label:'〆切:チラシ・DM・メルマガ(11月セミナー分)'},
+      {id:21,date:'2026-11-06',type:'video',label:'動画作成〆切＆納品(11月セミナー分)'},
+      {id:22,date:'2026-11-09',type:'share',label:'【重要】他支社共有_11月開催分'},
+      {id:23,date:'2026-11-16',type:'mail',label:'セミナー案内メール(11月)_1回目'},
+      {id:24,date:'2026-11-24',type:'mail',label:'セミナー案内メール(11月)_最終'},
+      {id:25,date:'2026-11-26',type:'seminar',label:'第4回(施工実施・記録編②)'},
+      {id:26,date:'2027-02-03',type:'chirashi',label:'〆切:チラシ・DM・メルマガ(2月セミナー分)'},
+      {id:27,date:'2027-02-04',type:'video',label:'動画作成〆切＆納品(2月セミナー分)'},
+      {id:28,date:'2027-02-05',type:'share',label:'【重要】他支社共有_2月開催分'},
+      {id:29,date:'2027-02-15',type:'mail',label:'セミナー案内メール(2月)_1回目'},
+      {id:30,date:'2027-02-22',type:'mail',label:'セミナー案内メール(2月)_最終'},
+      {id:31,date:'2027-02-25',type:'seminar',label:'第5回(竣工検査前編)'},
+      {id:32,date:'2027-04-01',type:'chirashi',label:'〆切:チラシ・DM・メルマガ(4月セミナー分)'},
+      {id:33,date:'2027-04-02',type:'video',label:'動画作成〆切＆納品(4月セミナー分)'},
+      {id:34,date:'2027-04-05',type:'share',label:'【重要】他支社共有_4月開催分'},
+      {id:35,date:'2027-04-12',type:'mail',label:'セミナー案内メール(4月)_1回目'},
+      {id:36,date:'2027-04-19',type:'mail',label:'セミナー案内メール(4月)_最終'},
+      {id:37,date:'2027-04-21',type:'seminar',label:'第6回(総集編)'},
+    ];
+    APP.blocked=[{id:101,name:'夏季休暇',start:'2026-08-08',end:'2026-08-16'},{id:102,name:'年末年始',start:'2026-12-26',end:'2027-01-05'}];
+    APP.ng_dates=["2026-04-16","2026-04-17","2026-04-21","2026-05-21","2026-05-22","2026-05-27","2026-06-25","2026-06-26","2026-06-30","2026-07-02","2026-07-16","2026-07-17","2026-07-22","2026-07-28","2026-08-04","2026-08-05","2026-08-19","2026-08-21","2026-09-10","2026-09-11","2026-09-15","2026-09-18"];
+    APP.ng_groups=[{id:1001,name:'CSTウェビナー(2026年上期)',dates:["2026-04-16","2026-04-17","2026-04-21","2026-05-21","2026-05-22","2026-05-27","2026-06-25","2026-06-26","2026-06-30","2026-07-02","2026-07-16","2026-07-17","2026-07-22","2026-07-28","2026-08-04","2026-08-05","2026-08-19","2026-08-21","2026-09-10","2026-09-11","2026-09-15","2026-09-18"]}];
+    APP.rules=[{step:'①',name:'チラシ・DM・メルマガ〆切',rule:'他支社共有の2営業日前'},{step:'②',name:'動画作成〆切＆納品',rule:'他支社共有の1営業日前'},{step:'③',name:'他支社共有',rule:'セミナー案内メール1回目の5営業日前（約1週間前）'},{step:'④',name:'セミナー案内メール（1回目）',rule:'他支社共有の5営業日後（約1週間後）'},{step:'⑤',name:'セミナー案内メール（最終）',rule:'セミナー開催の2営業日前'},{step:'⑥',name:'セミナー実施日',rule:'他支社共有から2週間以上後'},{step:'―',name:'メルマガ発送日',rule:'営業所ごとに発送日が異なるためカレンダーへの記載なし'}];
+    APP.backups=[];
+  }
+  renderCal();
+  updateGHStatus();
+})();
+</script>
+</body>
+</html>
